@@ -4,7 +4,7 @@ from aiogram.enums.parse_mode import ParseMode
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.client.default import DefaultBotProperties
 from aiogram.filters.state import State, StatesGroup
-from aiogram.fsm.context import FSMContext
+# from aiogram.fsm.context import FSMContext
 
 from .models import get_user, create_user, get_program, get_talk, create_question
 from .keyboards import (
@@ -132,7 +132,7 @@ async def back_to_program(callback):
     await callback.answer()
 
 
-class QuestionState(StatesGroup):
+class QuestionStates(StatesGroup):
     waiting_for_question = State()
 
 
@@ -165,45 +165,38 @@ async def ask_question(callback, state):
     talk_id = int(callback.data.split("_")[2])
     
     await state.update_data(talk_id=talk_id)
+    await state.set_state(QuestionStates.waiting_for_question)
     await callback.message.answer("Пожалуйста, введите ваш вопрос спикеру:")
     await callback.answer()
 
 
-@router.message(F.text)
+@router.message(QuestionStates.waiting_for_question)
 async def wait_question(message, state):
     data = await state.get_data()
     talk_id = data.get('talk_id')
-    user = await get_user(message.from_user.id, message.from_user.full_name)
-    
+
     if not talk_id:
         await message.answer("Ошибка: сначала выберите доклад")
         return
-    
+
     try:
-        question = await create_question(
+        talk, user, question = await create_question(
             text=message.text,
             talk_id=talk_id,
-            name=user
+            name=message.from_user.full_name, 
+            telegram_id=message.from_user.id
         )
-        
         await message.answer(
-            f"Ваш вопрос отправлен:\n\n"
-            f"Доклад: {question.talk.title}\n"
-            f"Вопрос: {question.text}",
-            reply_markup=guest_keyboard
+            f"✅ Ваш вопрос отправлен\n\n"
+            f"Доклад: {talk.title}\n"
+            f"Вопрос: {question.text}\n"
+            f"От: {user.name}\n",
+            reply_markup=guest_keyboard,
         )
-        
     except Exception as e:
         await message.answer(f"Ошибка при отправке вопроса: {str(e)}")
     finally:
         await state.clear()
-
-    await message.answer(
-        f"Ваш вопрос отправлен:\n\n"
-        f"Доклад: {question.talk.title}\n"
-        f"Вопрос: {question.text}",
-        reply_markup=guest_keyboard
-    )
 
 
 async def main():

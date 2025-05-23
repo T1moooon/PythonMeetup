@@ -11,8 +11,8 @@ start_keyboard = InlineKeyboardMarkup(
 
 guest_keyboard = InlineKeyboardMarkup(
     inline_keyboard=[
-        [InlineKeyboardButton(text="Программа мероприятия", callback_data="event_program")],
-        [InlineKeyboardButton(text="Задать вопрос", callback_data="ask_question")]
+        [InlineKeyboardButton(text="Программа мероприятия", callback_data="event_program")]
+        # [InlineKeyboardButton(text="Задать вопрос", callback_data="ask_question")]
     ]
 )
 
@@ -27,12 +27,13 @@ speaker_keyboard = InlineKeyboardMarkup(
 
 
 def get_talk_inline_keyboard(talk):
-    talk_keyboard = InlineKeyboardMarkup(
-        inline_keyboard=[
-            [InlineKeyboardButton(text="Задать вопрос", callback_data=f"question_{talk.pk}")],
-            [InlineKeyboardButton(text="Назад к программе", callback_data="back_to_program")]
-        ]
-    )
+    talk_keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(
+            text="✍ Задать вопрос",
+            callback_data=f"ask_question_{talk.pk}"
+        )],
+        [InlineKeyboardButton(text="Назад в меню", callback_data="back_to_menu")]
+    ])
     return talk_keyboard
 
 

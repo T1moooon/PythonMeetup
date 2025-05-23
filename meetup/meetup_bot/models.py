@@ -62,21 +62,27 @@ class Talk(models.Model):
 
 class Question(models.Model):
     text = models.CharField(max_length=250)
+    talk = models.ForeignKey(
+        Talk,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='talk'
+    )
     guest = models.ForeignKey(
         CustomUser,
         on_delete=models.SET_NULL,
         null=True,
         related_name='guest_questions'
     )
-    speaker = models.ForeignKey(
-        CustomUser,
-        on_delete=models.CASCADE,
-        null=True,
-        related_name='speaker_questions'
-    )
+    # speaker = models.ForeignKey(
+    #     CustomUser,
+    #     on_delete=models.CASCADE,
+    #     null=True,
+    #     related_name='speaker_questions'
+    # )
 
-    def __str__(self):
-        return f"{self.text} by {self.guest.name} to {self.speaker.name}"
+    # def __str__(self):
+    #     return f"{self.text} by {self.guest.name} to {self.speaker.name}"
 
 
 @sync_to_async
@@ -118,6 +124,21 @@ def get_program(event_id=None):
 def get_talk(talk_id):
     talk = Talk.objects.select_related('speaker').get(pk=talk_id)
     return talk
+
+
+@sync_to_async
+def get_question(talk_id):
+    question = Question.objects.select_related('title').get(pk=talk_id)
+    return question
+
+
+@sync_to_async
+def create_question(talk_id, name, telegram_id, text):
+    talk = Talk.objects.get(pk=talk_id)
+    user = CustomUser.objects.get(telegram_id=telegram_id, name=name)
+    question = Question.objects.create(talk=talk, guest=user, text=text)
+
+    return talk, user, question
 
 # Мероприятие Event
 # Программа

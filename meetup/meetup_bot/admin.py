@@ -32,10 +32,11 @@ class TalkAdmin(admin.ModelAdmin):
 
 @admin.register(Question)
 class QuestionAdmin(admin.ModelAdmin):
-    list_display = ('text', 'guest', 'speaker', 'short_text')
-    list_filter = ('speaker', 'guest')
-    search_fields = ('text', 'guest__name', 'speaker__name')
-    raw_id_fields = ('guest', 'speaker')
+    # list_display = ('text', 'guest', 'speaker', 'short_text')
+    # list_filter = ('speaker', 'guest')
+    # search_fields = ('text', 'guest__name', 'speaker__name')
+    # raw_id_fields = ('guest', 'speaker')
+    pass
     
     def short_text(self, obj):
         return obj.text[:50] + '...' if len(obj.text) > 50 else obj.text
