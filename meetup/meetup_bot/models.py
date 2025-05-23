@@ -1,4 +1,5 @@
 from django.db import models
+from django.utils import timezone
 
 from asgiref.sync import sync_to_async
 
@@ -48,6 +49,7 @@ class Talk(models.Model):
     end_time = models.DateTimeField()
     actual_start_time = models.DateTimeField(blank=True, null=True)
     actual_end_time = models.DateTimeField(blank=True, null=True)
+    # description = models.TextField(max_length=200)
     event = models.ForeignKey(
         Event,
         on_delete=models.CASCADE,
@@ -97,10 +99,25 @@ def create_user(telegram_id, name, role):
 
 
 @sync_to_async
-def get_program(event_id):
-    event = Event.objects.get(pk=event_id)
-    talks = event.talks.all()
-    return list(talks)
+def get_program(event_id=None):
+    if event_id:
+        event = Event.objects.get(pk=event_id)
+    else:
+        today = timezone.now().date()
+        event = Event.objects.filter(
+            start_date__date__lte=today,
+            end_date__date__gte=today
+        ).first()
+    if event:
+        talks = event.talks.all()
+        return event, list(talks)
+    return None, None
+
+
+@sync_to_async
+def get_talk(talk_id):
+    talk = Talk.objects.select_related('speaker').get(pk=talk_id)
+    return talk
 
 # Мероприятие Event
 # Программа
