@@ -119,6 +119,13 @@ def get_talk(talk_id):
     talk = Talk.objects.select_related('speaker').get(pk=talk_id)
     return talk
 
+
+@sync_to_async
+def get_current_talks():
+    now = timezone.now()
+    return list(Talk.objects.select_related('speaker').filter(start_time__lte=now, end_time_gte=now))
+
+
 # Мероприятие Event
 # Программа
 # Доклад Talk

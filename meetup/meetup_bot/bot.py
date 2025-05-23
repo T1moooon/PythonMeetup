@@ -1,12 +1,19 @@
 from django.conf import settings
-from aiogram import Bot, Dispatcher, Router, F
+from aiogram import Bot, Dispatcher, Router, F, types
 from aiogram.enums.parse_mode import ParseMode
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.client.default import DefaultBotProperties
 from aiogram.filters.state import State, StatesGroup
 from aiogram.fsm.context import FSMContext
 
-from .models import get_user, create_user, get_program, get_talk, create_question
+from .models import (
+    get_user,
+    create_user,
+    get_program,
+    get_talk,
+    # create_question,
+    get_current_talks
+)
 from .keyboards import (
         start_keyboard,
         guest_keyboard,
@@ -204,6 +211,18 @@ async def wait_question(message, state):
         f"Вопрос: {question.text}",
         reply_markup=guest_keyboard
     )
+
+# Список спикеров, выступающих в данный момент
+@router.message(F.text == "/current_speakers")
+async def current_speakers_handler(message: types.Message):
+    talks = await get_current_talks()
+    if talks:
+        response = "Сейчас выступают:\n"
+        for talk in talks:
+            response += f"- {talk.speaker.name}: \"{talk.title}\" (до {talk.end_time.strftime('%H:%M')})\n"
+    else:
+        response = "В данный момент нет активных докладов."
+    await message.answer(response)
 
 
 async def main():
