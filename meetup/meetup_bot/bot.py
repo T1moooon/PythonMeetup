@@ -3,8 +3,10 @@ from aiogram import Bot, Dispatcher, Router, F
 from aiogram.enums.parse_mode import ParseMode
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.client.default import DefaultBotProperties
+from aiogram.filters.state import State, StatesGroup
+from aiogram.fsm.context import FSMContext
 
-from .models import get_user, create_user, get_program, get_talk
+from .models import get_user, create_user, get_program, get_talk, create_question
 from .keyboards import (
         start_keyboard,
         guest_keyboard,
@@ -16,6 +18,7 @@ from .keyboards import (
 router = Router()
 
 
+# Функция приветствия
 @router.message(F.text == "/start")
 async def start_command(message):
     user_name = message.from_user.first_name
@@ -27,6 +30,7 @@ async def start_command(message):
     )
 
 
+# Регистрация
 @router.callback_query(F.data == "register")
 async def register_user(callback):
     try:
@@ -53,6 +57,7 @@ async def register_user(callback):
         await callback.answer()
 
 
+# Войти
 @router.callback_query(F.data == "login")
 async def check_registration(callback):
     user = await get_user(callback.from_user.id, callback.from_user.full_name)
@@ -78,6 +83,7 @@ def format_datetime(dt):
     return dt.strftime("%H:%M")
 
 
+# Получить программу мероприятия
 @router.callback_query(F.data == "event_program")
 async def get_event_program(callback):
     event, talks = await get_program()
@@ -108,12 +114,14 @@ async def get_event_program(callback):
         await callback.answer()
 
 
+# Назад в меню
 @router.callback_query(F.data == "back_to_menu")
 async def back_to_menu(callback):
     await callback.message.edit_text('Главное меню ', reply_markup=guest_keyboard)
     await callback.answer()
 
 
+# Назад к программе
 @router.callback_query(F.data == "back_to_program")
 async def back_to_program(callback):
     _, talks = await get_program()
@@ -124,8 +132,13 @@ async def back_to_program(callback):
     await callback.answer()
 
 
+class QuestionState(StatesGroup):
+    waiting_for_question = State()
+
+
+# Список докладов
 @router.callback_query(F.data.startswith("talk_"))
-async def talk_details(callback):
+async def talk_details(callback, state):
     talk_id = int(callback.data.split("_")[1])
     talk = await get_talk(talk_id)
     
@@ -133,8 +146,10 @@ async def talk_details(callback):
         await callback.answer("Доклад не найден")
         return
 
+    await state.update_data(current_talk_id=talk_id)
+
     response = (
-        f"🎤 {talk.title}\n\n"
+        f"Доклад: {talk.title}\n\n"
         f"👨‍💻 Спикер: {talk.speaker.name}\n"
         f"🕒 Время: {talk.start_time.strftime('%H:%M')} - {talk.end_time.strftime('%H:%M')}\n"
         # f"📝 Описание:\n{talk.description}\n\n"
@@ -144,22 +159,51 @@ async def talk_details(callback):
     await callback.answer()
 
 
-# @router.message(F.text.startswith("Доклад:"))
-# async def talk_details(message):
-#     talk_id = message.text.replace("Доклад: ", "").strip()
-#     talk = await get_talk(int(talk_id))
-#     if talk:
-#         response = (
-#             f"🎤 {talk.title}\n\n"
-#             f"👨‍💻 Спикер: {talk.speaker.name}\n"
-#             f"🕒 Время: {talk.start_time.strftime('%H:%M')} - {talk.end_time.strftime('%H:%M')}\n"
-#             f"📍 Место: {talk.location}\n\n"
-#             f"📝 Описание:\n{talk.description}\n\n"
-#             f"❓ Хотите задать вопрос спикеру?"
-#         )
-#         await message.answer(response, reply_markup=talk_keyboard)
-#     else:
-#         await message.answer("Доклад не найден в базе данных.")
+# Задать вопрос
+@router.callback_query(F.data.startswith("ask_question_"))
+async def ask_question(callback, state):
+    talk_id = int(callback.data.split("_")[2])
+    
+    await state.update_data(talk_id=talk_id)
+    await callback.message.answer("Пожалуйста, введите ваш вопрос спикеру:")
+    await callback.answer()
+
+
+@router.message(F.text)
+async def wait_question(message, state):
+    data = await state.get_data()
+    talk_id = data.get('talk_id')
+    user = await get_user(message.from_user.id, message.from_user.full_name)
+    
+    if not talk_id:
+        await message.answer("Ошибка: сначала выберите доклад")
+        return
+    
+    try:
+        question = await create_question(
+            text=message.text,
+            talk_id=talk_id,
+            name=user
+        )
+        
+        await message.answer(
+            f"Ваш вопрос отправлен:\n\n"
+            f"Доклад: {question.talk.title}\n"
+            f"Вопрос: {question.text}",
+            reply_markup=guest_keyboard
+        )
+        
+    except Exception as e:
+        await message.answer(f"Ошибка при отправке вопроса: {str(e)}")
+    finally:
+        await state.clear()
+
+    await message.answer(
+        f"Ваш вопрос отправлен:\n\n"
+        f"Доклад: {question.talk.title}\n"
+        f"Вопрос: {question.text}",
+        reply_markup=guest_keyboard
+    )
 
 
 async def main():
