@@ -137,18 +137,13 @@ def end_talk(talk_id):
     return talk
 
 
-# @sync_to_async
-# def get_current_talk(speaker):
-#     now = timezone.now()
-#     return Talk.objects.filter(
-#         speaker=speaker,
-#         start_time__lte=now,
-#         end_time__gte=now
-#     ).first()
-# @sync_to_async
-# def get_current_talks():
-#     now = timezone.now()
-#     return list(Talk.objects.select_related('speaker').filter(start_time__lte=now, end_time_gte=now))
+@sync_to_async
+def get_current_talks():
+    now = timezone.now()
+    return list(Talk.objects.select_related('speaker').filter(
+        actual_start_time=now,
+        actual_end_time=now
+    ))
 
 
 # Мероприятие Event

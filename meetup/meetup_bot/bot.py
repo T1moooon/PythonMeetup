@@ -17,7 +17,7 @@ from .models import (
     get_program,
     get_talk,
     # create_question,
-    get_current_talk,
+    get_current_talks,
     start_talk,
     end_talk
     
@@ -271,17 +271,21 @@ async def end_talk(callback):
     await callback.answer()
 
 
-# Список спикеров, выступающих в данный момент
-# @router.message(F.text == "/current_speakers")
-# async def current_speakers_handler(message: types.Message):
-#     talks = await get_current_talks()
-#     if talks:
-#         response = "Сейчас выступают:\n"
-#         for talk in talks:
-#             response += f"- {talk.speaker.name}: \"{talk.title}\" (до {talk.end_time.strftime('%H:%M')})\n"
-#     else:
-#         response = "В данный момент нет активных докладов."
-#     await message.answer(response)
+@router.message(F.text == "/current_speakers")
+async def current_speakers_command(message):
+    talks = await get_current_talks()
+    if not talks:
+        await message.answer("Сейчас нет активных докладов.")
+        return
+
+    response = "Сейчас проходят следующие доклады:\n\n"
+    for talk in talks:
+        response += (
+            f"{talk.title}\n"
+            f"Спикер: {talk.speaker.name}\n"
+            f"Время: {talk.actual_start_time.strftime('%H:%M')} - {talk.actual_end_time.strftime('%H:%M')}\n\n"
+        )
+    await message.answer(response)
 
 
 async def main():
