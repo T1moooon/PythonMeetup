@@ -121,9 +121,34 @@ def get_talk(talk_id):
 
 
 @sync_to_async
-def get_current_talks():
-    now = timezone.now()
-    return list(Talk.objects.select_related('speaker').filter(start_time__lte=now, end_time_gte=now))
+def start_talk(talk_id):
+    talk = Talk.objects.get(pk=talk_id)
+    talk.actual_start_time = timezone.now()
+    talk.actual_end_time = None
+    talk.save()
+    return talk
+
+
+@sync_to_async
+def end_talk(talk_id):
+    talk = Talk.objects.get(pk=talk_id)
+    talk.actual_end_time = timezone.now()
+    talk.save()
+    return talk
+
+
+# @sync_to_async
+# def get_current_talk(speaker):
+#     now = timezone.now()
+#     return Talk.objects.filter(
+#         speaker=speaker,
+#         start_time__lte=now,
+#         end_time__gte=now
+#     ).first()
+# @sync_to_async
+# def get_current_talks():
+#     now = timezone.now()
+#     return list(Talk.objects.select_related('speaker').filter(start_time__lte=now, end_time_gte=now))
 
 
 # Мероприятие Event

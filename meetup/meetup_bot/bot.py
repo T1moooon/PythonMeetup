@@ -1,18 +1,26 @@
 from django.conf import settings
+from django.utils import timezone
 from aiogram import Bot, Dispatcher, Router, F, types
 from aiogram.enums.parse_mode import ParseMode
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.client.default import DefaultBotProperties
 from aiogram.filters.state import State, StatesGroup
 from aiogram.fsm.context import FSMContext
+from aiogram.types import CallbackQuery
+from asgiref.sync import sync_to_async
 
 from .models import (
+    Talk,
+    CustomUser,
     get_user,
     create_user,
     get_program,
     get_talk,
     # create_question,
-    get_current_talks
+    get_current_talk,
+    start_talk,
+    end_talk
+    
 )
 from .keyboards import (
         start_keyboard,
@@ -212,17 +220,68 @@ async def wait_question(message, state):
         reply_markup=guest_keyboard
     )
 
-# Список спикеров, выступающих в данный момент
-@router.message(F.text == "/current_speakers")
-async def current_speakers_handler(message: types.Message):
-    talks = await get_current_talks()
-    if talks:
-        response = "Сейчас выступают:\n"
-        for talk in talks:
-            response += f"- {talk.speaker.name}: \"{talk.title}\" (до {talk.end_time.strftime('%H:%M')})\n"
+
+@router.callback_query(F.data == "start_talk")
+async def start_talk(callback):
+    user = await get_user(callback.from_user.id, callback.from_user.full_name)
+    if not user or user.role != 'speaker':
+        await callback.message.edit_text("Вы не зарегистрированы как спикер.")
+        await callback.answer()
+        return
+
+    now = timezone.now()
+    # Получаем текущий доклад спикера
+    talk = await sync_to_async(Talk.objects.filter(
+        speaker=user,
+        start_time__lte=now,
+        end_time__gte=now
+    ).first)()
+
+    if talk:
+        talk.actual_start_time = now
+        await sync_to_async(talk.save)()
+        await callback.message.edit_text(f"Вы начали выступление: {talk.title}")
     else:
-        response = "В данный момент нет активных докладов."
-    await message.answer(response)
+        await callback.message.edit_text("У вас нет запланированных докладов в данный момент.")
+    await callback.answer()
+
+
+@router.callback_query(F.data == "end_talk")
+async def end_talk(callback):
+    user = await get_user(callback.from_user.id, callback.from_user.full_name)
+    if not user or user.role != 'speaker':
+        await callback.message.edit_text("Вы не зарегистрированы как спикер.")
+        await callback.answer()
+        return
+
+    now = timezone.now()
+    # Получаем текущий доклад спикера
+    talk = await sync_to_async(Talk.objects.filter(
+        speaker=user,
+        start_time__lte=now,
+        end_time__gte=now
+    ).first)()
+
+    if talk:
+        talk.actual_end_time = now
+        await sync_to_async(talk.save)()
+        await callback.message.edit_text(f"Вы завершили выступление: {talk.title}")
+    else:
+        await callback.message.edit_text("У вас нет активных докладов в данный момент.")
+    await callback.answer()
+
+
+# Список спикеров, выступающих в данный момент
+# @router.message(F.text == "/current_speakers")
+# async def current_speakers_handler(message: types.Message):
+#     talks = await get_current_talks()
+#     if talks:
+#         response = "Сейчас выступают:\n"
+#         for talk in talks:
+#             response += f"- {talk.speaker.name}: \"{talk.title}\" (до {talk.end_time.strftime('%H:%M')})\n"
+#     else:
+#         response = "В данный момент нет активных докладов."
+#     await message.answer(response)
 
 
 async def main():
