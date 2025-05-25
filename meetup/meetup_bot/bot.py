@@ -178,47 +178,40 @@ async def talk_details(callback, state):
 @router.callback_query(F.data.startswith("ask_question_"))
 async def ask_question(callback, state):
     talk_id = int(callback.data.split("_")[2])
-    
     await state.update_data(talk_id=talk_id)
+    await state.set_state(QuestionState.waiting_for_question)
     await callback.message.answer("Пожалуйста, введите ваш вопрос спикеру:")
     await callback.answer()
 
 
-@router.message(F.text)
+@router.message(QuestionState.waiting_for_question)
 async def wait_question(message, state):
     data = await state.get_data()
     talk_id = data.get('talk_id')
     user = await get_user(message.from_user.id, message.from_user.full_name)
-    
+
     if not talk_id:
         await message.answer("Ошибка: сначала выберите доклад")
         return
-    
+
     try:
         question = await create_question(
             text=message.text,
             talk_id=talk_id,
             name=user
         )
-        
+
         await message.answer(
             f"Ваш вопрос отправлен:\n\n"
             f"Доклад: {question.talk.title}\n"
             f"Вопрос: {question.text}",
             reply_markup=guest_keyboard
         )
-        
+
     except Exception as e:
         await message.answer(f"Ошибка при отправке вопроса: {str(e)}")
     finally:
         await state.clear()
-
-    await message.answer(
-        f"Ваш вопрос отправлен:\n\n"
-        f"Доклад: {question.talk.title}\n"
-        f"Вопрос: {question.text}",
-        reply_markup=guest_keyboard
-    )
 
 
 @router.callback_query(F.data == "start_talk")
@@ -280,10 +273,11 @@ async def current_speakers_command(message):
 
     response = "Сейчас проходят следующие доклады:\n\n"
     for talk in talks:
+        start_time = talk.actual_start_time.strftime('%H:%M') if talk.actual_start_time else "ещё не начат"
         response += (
-            f"{talk.title}\n"
+            f"Доклад: {talk.title}\n"
             f"Спикер: {talk.speaker.name}\n"
-            f"Время: {talk.actual_start_time.strftime('%H:%M')} - {talk.actual_end_time.strftime('%H:%M')}\n\n"
+            f"Начало: {start_time}\n"
         )
     await message.answer(response)
 

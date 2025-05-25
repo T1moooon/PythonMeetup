@@ -1,5 +1,6 @@
 from django.db import models
 from django.utils import timezone
+from django.db.models import Q
 
 from asgiref.sync import sync_to_async
 
@@ -141,8 +142,10 @@ def end_talk(talk_id):
 def get_current_talks():
     now = timezone.now()
     return list(Talk.objects.select_related('speaker').filter(
-        actual_start_time=now,
-        actual_end_time=now
+        actual_start_time__isnull=False,
+        actual_end_time__isnull=True,
+        start_time__lte=now,
+        end_time__gte=now
     ))
 
 
