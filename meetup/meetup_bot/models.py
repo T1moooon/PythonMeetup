@@ -140,6 +140,37 @@ def create_question(talk_id, name, telegram_id, text):
 
     return talk, user, question
 
+
+@sync_to_async
+def start_talk(talk_id):
+    talk = Talk.objects.get(pk=talk_id)
+    talk.actual_start_time = timezone.now()
+    talk.actual_end_time = None
+    talk.save()
+    return talk
+
+
+@sync_to_async
+def end_talk(talk_id):
+    talk = Talk.objects.get(pk=talk_id)
+    talk.actual_end_time = timezone.now()
+    talk.save()
+    speaker = talk.speaker
+    speaker.role = 'guest'
+    speaker.save()
+    return talk
+
+
+@sync_to_async
+def get_current_talks():
+    now = timezone.now()
+    return list(Talk.objects.select_related('speaker').filter(
+        actual_start_time__isnull=False,
+        actual_end_time__isnull=True,
+        start_time__lte=now,
+        end_time__gte=now
+    ))
+
 # Мероприятие Event
 # Программа
 # Доклад Talk
