@@ -155,6 +155,9 @@ def end_talk(talk_id):
     talk = Talk.objects.get(pk=talk_id)
     talk.actual_end_time = timezone.now()
     talk.save()
+    speaker = talk.speaker
+    speaker.role = 'guest'
+    speaker.save()
     return talk
 
 

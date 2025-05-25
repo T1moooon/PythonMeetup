@@ -213,7 +213,7 @@ async def wait_question(message, state):
 
 
 @router.callback_query(F.data == "start_talk")
-async def start_talk(callback):
+async def handle_start_talk(callback):
     user = await get_user(callback.from_user.id, callback.from_user.full_name)
     if not user or user.role != 'speaker':
         await callback.message.edit_text("Вы не зарегистрированы как спикер.")
@@ -227,17 +227,21 @@ async def start_talk(callback):
         end_time__gte=now
     ).first)()
 
-    if talk:
-        talk.actual_start_time = now
-        await sync_to_async(talk.save)()
-        await callback.message.edit_text(f"Вы начали выступление: {talk.title}")
-    else:
+    if not talk:
         await callback.message.edit_text("У вас нет запланированных докладов в данный момент.")
+        await callback.answer()
+        return
+
+    await start_talk(talk.id)
+    await callback.message.edit_text(
+        f"Вы начали выступление: {talk.title}\n"
+        f"Время начала: {now.strftime('%H:%M')}"
+    )
     await callback.answer()
 
 
 @router.callback_query(F.data == "end_talk")
-async def end_talk(callback):
+async def handle_end_talk(callback):
     user = await get_user(callback.from_user.id, callback.from_user.full_name)
     if not user or user.role != 'speaker':
         await callback.message.edit_text("Вы не зарегистрированы как спикер.")
@@ -247,16 +251,20 @@ async def end_talk(callback):
     now = timezone.now()
     talk = await sync_to_async(Talk.objects.filter(
         speaker=user,
-        start_time__lte=now,
-        end_time__gte=now
+        actual_start_time__isnull=False,
+        actual_end_time__isnull=True
     ).first)()
 
-    if talk:
-        talk.actual_end_time = now
-        await sync_to_async(talk.save)()
-        await callback.message.edit_text(f"Вы завершили выступление: {talk.title}")
-    else:
-        await callback.message.edit_text("У вас нет активных докладов в данный момент.")
+    if not talk:
+        await callback.message.edit_text("У вас нет активных докладов.")
+        await callback.answer()
+        return
+
+    await end_talk(talk.id)
+    await callback.message.edit_text(
+        f"Вы завершили выступление: {talk.title}\n"
+        f"Время окончания: {now.strftime('%H:%M')}"
+    )
     await callback.answer()
 
 
