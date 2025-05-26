@@ -7,8 +7,8 @@ from aiogram.enums.parse_mode import ParseMode
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.client.default import DefaultBotProperties
 from aiogram.filters.state import State, StatesGroup
+from aiogram.exceptions import TelegramBadRequest
 from asgiref.sync import sync_to_async
-# from aiogram.fsm.context import FSMContext
 import asyncio
 from aiogram.exceptions import TelegramBadRequest
 
