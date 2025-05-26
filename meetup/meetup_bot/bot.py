@@ -11,15 +11,12 @@ from aiogram.filters.state import State, StatesGroup
 from aiogram.exceptions import TelegramBadRequest
 from asgiref.sync import sync_to_async
 import asyncio
-from aiogram.exceptions import TelegramBadRequest
 
 
 from .models import (
     Mailing,
     MailingReport,
     Talk,
-    CustomUser,
-    Question,
     get_user,
     create_user,
     get_program,
@@ -405,6 +402,7 @@ async def show_speaker_questions(callback):
         return
 
     questions = await get_speaker_questions(user.id)
+    
     if not questions:
         await callback.message.edit_text("Пока нет ни одного вопроса к вашим докладам.")
         await callback.answer()
@@ -416,7 +414,7 @@ async def show_speaker_questions(callback):
             f"<b>Доклад:</b> {q.talk.title}\n"
             f"<b>Гость:</b> {q.guest.name or 'Без имени'}\n"
             f"<b>Вопрос:</b> {q.text}\n"
-            f"{q.created_at.strftime('%d.%m %H:%M')}\n\n"
+            f"{timezone.localtime(q.created_at).strftime('%d.%m %H:%M')}\n\n"
         )
 
     await callback.message.edit_text(text[:4000], reply_markup=end_talk_keyboard)

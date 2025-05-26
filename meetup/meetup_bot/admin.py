@@ -26,6 +26,11 @@ class EventAdmin(admin.ModelAdmin):
     ordering = ('-start_date',)
 
 
+class QuestionInline(admin.TabularInline):  # или admin.StackedInline
+    model = Question
+    extra = 0
+
+
 @admin.register(Talk)
 class TalkAdmin(admin.ModelAdmin):
     list_display = ('title', 'speaker', 'event', 'start_time', 'end_time')
@@ -34,6 +39,7 @@ class TalkAdmin(admin.ModelAdmin):
     raw_id_fields = ('speaker', 'event')
     date_hierarchy = 'start_time'
     ordering = ('start_time',)
+    inlines = (QuestionInline,)
 
 
 @admin.register(Question)

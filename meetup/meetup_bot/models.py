@@ -64,7 +64,7 @@ class Question(models.Model):
     talk = models.ForeignKey(
         Talk,
         on_delete=models.PROTECT,
-        related_name='talk'
+        related_name='questions'
     )
     guest = models.ForeignKey(
         CustomUser,
@@ -199,9 +199,14 @@ def get_current_talks():
 
 @sync_to_async
 def get_speaker_questions(speaker_id):
-    talks = Talk.objects.filter(speaker_id=speaker_id)
-    questions = Question.objects.filter(talk__in=talks).select_related('guest', 'talk').order_by('-created_at')
-    return list(questions)
+    now = timezone.now()
+    talk = Talk.objects.get(
+        speaker_id=speaker_id,
+        start_time__lte=now,
+        end_time__gte=now
+    )
+    return list(talk.questions.select_related('guest').all())
+
 # Мероприятие Event
 # Программа
 # Доклад Talk
