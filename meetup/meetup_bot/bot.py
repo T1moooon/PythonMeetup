@@ -18,6 +18,7 @@ from .models import (
     MailingReport,
     Talk,
     CustomUser,
+    Question,
     get_user,
     create_user,
     get_program,
@@ -32,7 +33,9 @@ from .keyboards import (
         guest_keyboard,
         speaker_keyboard,
         get_talk_inline_keyboard,
-        get_program_inline_keyboard
+        get_program_inline_keyboard,
+        back_keyboard,
+        cancel_keyboard,
 )
 
 router = Router()
@@ -113,7 +116,10 @@ async def get_event_program(callback):
     event, talks = await get_program()
 
     if not event:
-        await callback.message.edit_text("Программа отсутствует")
+        await callback.message.edit_text(
+            "Программа отсутствует",
+            reply_markup=back_keyboard
+        )
         await callback.answer()
         return
 
@@ -172,8 +178,6 @@ async def talk_details(callback, state):
         f"Доклад: {talk.title}\n\n"
         f"👨‍💻 Спикер: {talk.speaker.name}\n"
         f"🕒 Время: {talk.start_time.strftime('%H:%M')} - {talk.end_time.strftime('%H:%M')}\n"
-        # f"📝 Описание:\n{talk.description}\n\n"
-        f"❓ Хотите задать вопрос спикеру?"
     )
     await callback.message.edit_text(response, reply_markup=get_talk_inline_keyboard(talk))
     await callback.answer()
@@ -183,10 +187,30 @@ async def talk_details(callback, state):
 @router.callback_query(F.data.startswith("ask_question_"))
 async def ask_question(callback, state):
     talk_id = int(callback.data.split("_")[2])
+
+    now = timezone.now()
+    talk = await sync_to_async(Talk.objects.filter(
+        pk=talk_id,
+        actual_start_time__lte=now,
+        actual_end_time__isnull=True
+    ).first)()
+    # print(talk)
+    if not talk:
+        await callback.message.answer(
+            "Этот доклад не активен в данный момент.",
+            reply_markup=back_keyboard,
+            parse_mode=None
+        )
+        await callback.answer()
+        return
     
     await state.update_data(talk_id=talk_id)
     await state.set_state(QuestionStates.waiting_for_question)
-    await callback.message.answer("Пожалуйста, введите ваш вопрос спикеру:")
+    await callback.message.answer(
+        "Пожалуйста, введите ваш вопрос спикеру:",
+        reply_markup=cancel_keyboard,
+        parse_mode=None
+    )
     await callback.answer()
 
 
@@ -195,41 +219,80 @@ async def wait_question(message, state):
     data = await state.get_data()
     talk_id = data.get('talk_id')
 
-    if not talk_id:
-        await message.answer("Ошибка: сначала выберите доклад")
-        return
-
     try:
         talk, user, question = await create_question(
             text=message.text,
             talk_id=talk_id,
             name=message.from_user.full_name, 
             telegram_id=message.from_user.id
-        )
+            )
+
+        if not talk:
+            await message.answer(
+                "Доклад уже завершился, вопросы больше не принимаются.",
+                parse_mode=None
+            )
+            await state.clear()
+            return
+
         await message.answer(
             f"✅ Ваш вопрос отправлен\n\n"
             f"Доклад: {talk.title}\n"
             f"Вопрос: {question.text}\n"
             f"От: {user.name}\n",
-            reply_markup=get_program_inline_keyboard,
+            parse_mode=None,
+            reply_markup=back_keyboard
         )
     except Exception as e:
-        await message.answer(f"Ошибка при отправке вопроса: {str(e)}")
+        await message.answer(
+            f"Ошибка при отправке вопроса: {str(e)}",
+            reply_markup=back_keyboard,
+            parse_mode=None
+        )
     finally:
         await state.clear()
+
+    # if not talk_id:
+    #     await message.answer(
+    #         "Ошибка: сначала выберите доклад",
+    #         parse_mode=None
+    #     )
+    #     return
+
+    # try:
+    #     talk, user, question = await create_question(
+    #         text=message.text,
+    #         talk_id=talk_id,
+    #         name=message.from_user.full_name, 
+    #         telegram_id=message.from_user.id
+    #     )
+    #     await message.answer(
+    #         f"✅ Ваш вопрос отправлен\n\n"
+    #         f"Доклад: {talk.title}\n"
+    #         f"Вопрос: {question.text}\n"
+    #         f"От: {user.name}\n",
+    #         reply_markup=back_keyboard,
+    #         parse_mode=None
+    #     )
+    # except Exception as e:
+    #     await message.answer(
+    #         f"Ошибка при отправке вопроса: {str(e)}",
+    #         reply_markup=back_keyboard,
+    #         parse_mode=None
+    #     )
+    # finally:
+    #     await state.clear()
 
 _BOT = None
 
 
 async def send_mailing(mailing):
-    
     if _BOT:
         bot = _BOT
     else:
         bot = Bot(token=settings.BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 
     users = await sync_to_async(lambda: list(mailing.users.all()))()
-
     for user in users:
         await asyncio.sleep(1)
         try:
@@ -263,7 +326,10 @@ async def handle_start_talk(callback):
     ).first)()
 
     if not talk:
-        await callback.message.edit_text("У вас нет запланированных докладов в данный момент.")
+        await callback.message.edit_text(
+            "У вас нет запланированных докладов в данный момент.",
+            reply_markup=speaker_keyboard
+        )
         await callback.answer()
         return
 

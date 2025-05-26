@@ -49,7 +49,6 @@ class Talk(models.Model):
     end_time = models.DateTimeField()
     actual_start_time = models.DateTimeField(blank=True, null=True)
     actual_end_time = models.DateTimeField(blank=True, null=True)
-    # description = models.TextField(max_length=200)
     event = models.ForeignKey(
         Event,
         on_delete=models.CASCADE,
@@ -72,9 +71,10 @@ class Question(models.Model):
         on_delete=models.PROTECT,
         related_name='guest_questions',
     )
+    created_at = models.DateTimeField(auto_now_add=True)
 
-    # def __str__(self):
-    #     return f"{self.text} by {self.guest.name} to {self.speaker.name}"
+    def __str__(self):
+        return f"{self.text} by {self.guest.name} to {self.speaker.name}"
 
 
 class Mailing(models.Model):

@@ -51,3 +51,17 @@ def get_program_inline_keyboard(talks):
         ]
     )
     return program_keyboard
+
+
+back_keyboard = InlineKeyboardMarkup(
+    inline_keyboard=[
+        [InlineKeyboardButton(text="Назад в меню", callback_data="back_to_menu")]
+    ]
+)
+
+
+cancel_keyboard = InlineKeyboardMarkup(
+    inline_keyboard=[
+        [InlineKeyboardButton(text='Отменить', callback_data='back_to_menu')]
+    ]
+)
