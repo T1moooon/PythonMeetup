@@ -243,7 +243,7 @@ async def ask_question(callback, state):
     await state.set_state(QuestionStates.waiting_for_question)
     await callback.message.answer(
         "Пожалуйста, введите ваш вопрос спикеру:",
-        reply_markup=cancel_keyboard,
+        reply_markup=back_keyboard,
         parse_mode=None
     )
     await callback.answer()
@@ -333,7 +333,7 @@ async def handle_start_talk(callback):
     if not talk:
         await callback.message.edit_text(
             "У вас нет запланированных докладов в данный момент.",
-            reply_markup=guest_keyboard
+            reply_markup=start_speaker_keyboard
         )
         await callback.answer()
         return
@@ -371,7 +371,7 @@ async def handle_end_talk(callback):
     await callback.message.edit_text(
         f"Вы завершили выступление: {talk.title}\n"
         f"Время окончания: {timezone.localtime(now).strftime('%H:%M')}",
-        reply_markup='end_talk_keyboard'
+        reply_markup=end_talk_keyboard
     )
     await callback.answer()
 
