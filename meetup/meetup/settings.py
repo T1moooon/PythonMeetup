@@ -127,3 +127,4 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 load_dotenv()
 BOT_TOKEN = os.environ['BOT_TOKEN']
+PAYMENT_PROVIDER_TOKEN = os.environ['PAYMENT_PROVIDER_TOKEN']

@@ -3,6 +3,7 @@ from django.utils import timezone
 from django.db.models.signals import m2m_changed
 from django.dispatch import receiver
 from aiogram import Bot, Dispatcher, Router, F
+from aiogram.types import LabeledPrice, PreCheckoutQuery, Message
 from aiogram.enums.parse_mode import ParseMode
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.client.default import DefaultBotProperties
@@ -423,6 +424,36 @@ async def show_speaker_questions(callback):
 
     await callback.message.edit_text(text[:4000], reply_markup=end_talk_keyboard)
     await callback.answer()
+
+
+@router.callback_query(F.data == "donate")
+async def process_donate(callback):
+    await callback.message.answer_invoice(
+        title="Поддержка проекта",
+        description="Спасибо за интерес к мероприятию! Вы можете поддержать нас любым удобным способом 💙",
+        payload="donation_payload",
+        provider_token=settings.PAYMENT_PROVIDER_TOKEN,
+        currency="RUB",
+        prices=[
+            LabeledPrice(label="Поддержать (100₽)", amount=10000)
+        ],
+        start_parameter="donate",
+        need_name=False,
+        need_email=False,
+        is_flexible=False
+    )
+    await callback.answer()
+
+
+@router.pre_checkout_query()
+async def pre_checkout_query(pre_checkout_query: PreCheckoutQuery):
+    await pre_checkout_query.answer(ok=True)
+
+
+@router.message(F.successful_payment)
+async def successful_payment(message: Message):
+    total = message.successful_payment.total_amount / 100
+    await message.answer(f"✅ Спасибо за поддержку! Вы пожертвовали {total:.2f} ₽.")
 
 
 async def main():
