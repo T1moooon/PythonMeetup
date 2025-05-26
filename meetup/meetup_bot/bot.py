@@ -127,8 +127,8 @@ async def get_event_program(callback):
         await callback.answer()
         return
 
-    start_date = event.start_date.strftime("%d.%m.%Y %H:%M")
-    end_date = event.end_date.strftime("%d.%m.%Y %H:%M")
+    start_date = timezone.localtime(event.start_date).strftime("%d.%m.%Y %H:%M")
+    end_date = timezone.localtime(event.end_date).strftime("%d.%m.%Y %H:%M")
 
     event_description = (
         f"Мероприятие: {event.title}\n"
@@ -183,7 +183,6 @@ async def back_to_program(callback):
     await callback.answer()
 
 
-
 # Список докладов
 @router.callback_query(F.data.startswith("talk_"))
 async def talk_details(callback, state):
@@ -197,10 +196,13 @@ async def talk_details(callback, state):
 
     await state.update_data(current_talk_id=talk_id)
 
+    start_time = timezone.localtime(talk.start_time).strftime("%H:%M")
+    end_time = timezone.localtime(talk.end_time).strftime("%H:%M")
+
     response = (
         f"Доклад: {talk.title}\n\n"
         f"👨‍💻 Спикер: {talk.speaker.name}\n"
-        f"🕒 Время: {talk.start_time.strftime('%H:%M')} - {talk.end_time.strftime('%H:%M')}\n"
+        f"🕒 Время: {start_time} - {end_time}\n"
     )
     if user.role == 'guest':
         await callback.message.edit_text(
@@ -228,8 +230,8 @@ async def ask_question(callback, state):
     ).first)()
 
     if not talk:
-        await callback.message.answer(
-            "Этот доклад не активен в данный момент.",
+        await callback.message.edit_text(
+            "Этот доклад не активен в данный момент. Вы можете вернуться назад",
             reply_markup=back_keyboard,
             parse_mode=None
         )
@@ -330,7 +332,7 @@ async def handle_start_talk(callback):
     if not talk:
         await callback.message.edit_text(
             "У вас нет запланированных докладов в данный момент.",
-            reply_markup=start_speaker_keyboard
+            reply_markup=back_keyboard
         )
         await callback.answer()
         return
@@ -435,7 +437,11 @@ async def process_donate(callback):
         start_parameter="donate",
         need_name=False,
         need_email=False,
-        is_flexible=False
+        is_flexible=False,
+    )
+    await callback.message.answer(
+        "Вы можете вернуться назад:", 
+        reply_markup=back_keyboard
     )
     await callback.answer()
 
@@ -448,7 +454,10 @@ async def pre_checkout_query(pre_checkout_query: PreCheckoutQuery):
 @router.message(F.successful_payment)
 async def successful_payment(message: Message):
     total = message.successful_payment.total_amount / 100
-    await message.answer(f"✅ Спасибо за поддержку! Вы пожертвовали {total:.2f} ₽.")
+    await message.answer(
+        f"✅ Спасибо за поддержку! Вы пожертвовали {total:.2f} ₽.",
+        reply_markup=guest_keyboard
+    )
 
 
 async def main():
