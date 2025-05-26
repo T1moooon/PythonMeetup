@@ -11,7 +11,8 @@ start_keyboard = InlineKeyboardMarkup(
 
 guest_keyboard = InlineKeyboardMarkup(
     inline_keyboard=[
-        [InlineKeyboardButton(text="Программа мероприятия", callback_data="event_program")]
+        [InlineKeyboardButton(text="Программа мероприятия", callback_data="event_program")],
+        [InlineKeyboardButton(text="💸 Поддержать проект", callback_data="donate")]
     ]
 )
 
@@ -26,7 +27,7 @@ start_speaker_keyboard = InlineKeyboardMarkup(
 
 start_talk_keyboard = InlineKeyboardMarkup(
     inline_keyboard=[
-        [InlineKeyboardButton(text="Получить вопросы", callback_data="get_questions")]
+        [InlineKeyboardButton(text="Получить вопросы", callback_data="speaker_questions")]
     ]
 )
 
