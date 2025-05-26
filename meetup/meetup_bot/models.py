@@ -73,8 +73,8 @@ class Question(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
 
-    def __str__(self):
-        return f"{self.text} by {self.guest.name} to {self.speaker.name}"
+    # def __str__(self):
+    #     return f"{self.text} by {self.guest.name} to {self.speaker.name}"
 
 
 class Mailing(models.Model):
