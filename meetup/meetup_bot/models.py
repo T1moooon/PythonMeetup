@@ -196,6 +196,12 @@ def get_current_talks():
         end_time__gte=now
     ))
 
+
+@sync_to_async
+def get_speaker_questions(speaker_id):
+    talks = Talk.objects.filter(speaker_id=speaker_id)
+    questions = Question.objects.filter(talk__in=talks).select_related('guest', 'talk').order_by('-created_at')
+    return list(questions)
 # Мероприятие Event
 # Программа
 # Доклад Talk

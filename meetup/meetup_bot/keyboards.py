@@ -26,7 +26,7 @@ start_speaker_keyboard = InlineKeyboardMarkup(
 
 start_talk_keyboard = InlineKeyboardMarkup(
     inline_keyboard=[
-        [InlineKeyboardButton(text="Получить вопросы", callback_data="get_questions")]
+        [InlineKeyboardButton(text="Получить вопросы", callback_data="speaker_questions")]
     ]
 )
 
