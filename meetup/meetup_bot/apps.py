@@ -7,3 +7,4 @@ class MeetupBotConfig(AppConfig):
 
     def ready(self):
         print('bot started')
+        import meetup_bot.bot 

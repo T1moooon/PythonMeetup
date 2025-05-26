@@ -1,5 +1,7 @@
 from django.conf import settings
 from django.utils import timezone
+from django.db.models.signals import m2m_changed
+from django.dispatch import receiver
 from aiogram import Bot, Dispatcher, Router, F
 from aiogram.enums.parse_mode import ParseMode
 from aiogram.fsm.storage.memory import MemoryStorage
@@ -7,8 +9,13 @@ from aiogram.client.default import DefaultBotProperties
 from aiogram.filters.state import State, StatesGroup
 from asgiref.sync import sync_to_async
 # from aiogram.fsm.context import FSMContext
+import asyncio
+from aiogram.exceptions import TelegramBadRequest
+
 
 from .models import (
+    Mailing,
+    MailingReport,
     Talk,
     CustomUser,
     get_user,
@@ -26,9 +33,13 @@ from .keyboards import (
         speaker_keyboard,
         get_talk_inline_keyboard,
         get_program_inline_keyboard
-    )
+)
 
 router = Router()
+
+
+class QuestionStates(StatesGroup):
+    waiting_for_question = State()
 
 
 # Функция приветствия
@@ -145,10 +156,6 @@ async def back_to_program(callback):
     await callback.answer()
 
 
-class QuestionStates(StatesGroup):
-    waiting_for_question = State()
-
-
 # Список докладов
 @router.callback_query(F.data.startswith("talk_"))
 async def talk_details(callback, state):
@@ -204,12 +211,40 @@ async def wait_question(message, state):
             f"Доклад: {talk.title}\n"
             f"Вопрос: {question.text}\n"
             f"От: {user.name}\n",
-            reply_markup=guest_keyboard,
+            reply_markup=get_program_inline_keyboard,
         )
     except Exception as e:
         await message.answer(f"Ошибка при отправке вопроса: {str(e)}")
     finally:
         await state.clear()
+
+_BOT = None
+
+
+async def send_mailing(mailing):
+    
+    if _BOT:
+        bot = _BOT
+    else:
+        bot = Bot(token=settings.BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
+
+    users = await sync_to_async(lambda: list(mailing.users.all()))()
+
+    for user in users:
+        await asyncio.sleep(1)
+        try:
+            await bot.send_message(user.telegram_id, mailing.text)
+            await sync_to_async(MailingReport.objects.create)(user=user, mailing=mailing, status="Success")
+        except TelegramBadRequest as err:
+            await sync_to_async(MailingReport.objects.create)(user=user, mailing=mailing, status="Fail")
+            print(err)
+
+
+@receiver(m2m_changed, sender=Mailing.users.through)
+async def commit_mailing(sender, instance, action, **kwargs):
+    if action == "post_add":
+        await send_mailing(instance)
+        print('Рассылка отправлена')
 
 
 @router.callback_query(F.data == "start_talk")

@@ -64,25 +64,50 @@ class Question(models.Model):
     text = models.CharField(max_length=250)
     talk = models.ForeignKey(
         Talk,
-        on_delete=models.SET_NULL,
-        null=True,
+        on_delete=models.PROTECT,
         related_name='talk'
     )
     guest = models.ForeignKey(
         CustomUser,
-        on_delete=models.SET_NULL,
-        null=True,
-        related_name='guest_questions'
+        on_delete=models.PROTECT,
+        related_name='guest_questions',
     )
-    # speaker = models.ForeignKey(
-    #     CustomUser,
-    #     on_delete=models.CASCADE,
-    #     null=True,
-    #     related_name='speaker_questions'
-    # )
 
     # def __str__(self):
     #     return f"{self.text} by {self.guest.name} to {self.speaker.name}"
+
+
+class Mailing(models.Model):
+    text = models.TextField(max_length=250)
+    users = models.ManyToManyField(CustomUser, verbose_name="Получатели")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Создано")
+
+    class Meta:
+        verbose_name = "Рассылка"
+        verbose_name_plural = "Рассылки"
+
+    def __str__(self):
+        return f"Рассылка {self.created_at.strftime("%d-%m-%y %H:%M")}"
+
+
+class MailingReport(models.Model):
+    STATUSES = [
+        ('Success', 'Success'), 
+        ('Fail', 'Fail'),
+        ('Created', 'Created'),
+    ]
+    mailing = models.ForeignKey(Mailing, on_delete=models.CASCADE)
+    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
+    status = models.CharField(
+        max_length=10,
+        choices=STATUSES,
+        default='Created'
+    )
+
+
+@sync_to_async
+def get_receivers(instance):
+    return list(instance.users.all())
 
 
 @sync_to_async
