@@ -31,11 +31,13 @@ from .models import (
 from .keyboards import (
         start_keyboard,
         guest_keyboard,
-        speaker_keyboard,
+        start_speaker_keyboard,
         get_talk_inline_keyboard,
         get_program_inline_keyboard,
         back_keyboard,
-        cancel_keyboard,
+        start_talk_keyboard,
+        end_talk_keyboard,
+        get_program_keyboard_for_speaker
 )
 
 router = Router()
@@ -72,7 +74,7 @@ async def register_user(callback):
         else:
             if user.role == 'speaker':
                 text = 'Вы уже зарегистрированы как спикер'
-                markup = speaker_keyboard
+                markup = start_speaker_keyboard
             else: 
                 text = "Вы уже зарегистрированы как гость"
                 markup = guest_keyboard
@@ -101,7 +103,7 @@ async def check_registration(callback):
     elif user.role == 'speaker':
         await callback.message.edit_text(
             "Вы вошли как спикер",
-            reply_markup=speaker_keyboard
+            reply_markup=start_speaker_keyboard
         )
     await callback.answer()
 
@@ -147,7 +149,17 @@ async def get_event_program(callback):
 # Назад в меню
 @router.callback_query(F.data == "back_to_menu")
 async def back_to_menu(callback):
-    await callback.message.edit_text('Главное меню ', reply_markup=guest_keyboard)
+    user = await get_user(callback.from_user.id, callback.from_user.full_name)
+    if user.role == 'guest':
+        await callback.message.edit_text(
+            'Главное меню ',
+            reply_markup=guest_keyboard
+        )
+    if user.role == 'speaker':
+        await callback.message.edit_text(
+            'Главное меню ',
+            reply_markup=start_speaker_keyboard
+        )
     await callback.answer()
 
 
@@ -155,11 +167,24 @@ async def back_to_menu(callback):
 @router.callback_query(F.data == "back_to_program")
 async def back_to_program(callback):
     _, talks = await get_program()
-    await callback.message.edit_text(
-        "Выберите доклад:",
-        reply_markup=get_program_inline_keyboard(talks)
-    )
+    user = await get_user(callback.from_user.id, callback.from_user.full_name)
+    if user.role == 'guest':
+        await callback.message.edit_text(
+            "Выберите доклад:",
+            reply_markup=get_program_inline_keyboard(talks)
+        )
+    if user.role == 'speaker':
+        await callback.message.edit_text(
+            "Выберите доклад:",
+            reply_markup=get_program_keyboard_for_speaker(talks)
+        )
     await callback.answer()
+
+
+# @router.callback_query(F.data == "back_to_speaker_menu")
+# async def back_to_speaker_menu(callback):
+#     await callback.message.edit_text('Главное меню ', reply_markup=start_speaker_keyboard)
+#     await callback.answer()
 
 
 # Список докладов
@@ -167,6 +192,7 @@ async def back_to_program(callback):
 async def talk_details(callback, state):
     talk_id = int(callback.data.split("_")[1])
     talk = await get_talk(talk_id)
+    user = await get_user(callback.from_user.id, callback.from_user.full_name)
     
     if not talk:
         await callback.answer("Доклад не найден")
@@ -179,7 +205,16 @@ async def talk_details(callback, state):
         f"👨‍💻 Спикер: {talk.speaker.name}\n"
         f"🕒 Время: {talk.start_time.strftime('%H:%M')} - {talk.end_time.strftime('%H:%M')}\n"
     )
-    await callback.message.edit_text(response, reply_markup=get_talk_inline_keyboard(talk))
+    if user.role == 'guest':
+        await callback.message.edit_text(
+            response,
+            reply_markup=get_talk_inline_keyboard(talk)
+        )
+    if user.role == 'speaker':
+        await callback.message.edit_text(
+            response,
+            reply_markup=back_keyboard
+        )
     await callback.answer()
 
 
@@ -252,36 +287,6 @@ async def wait_question(message, state):
     finally:
         await state.clear()
 
-    # if not talk_id:
-    #     await message.answer(
-    #         "Ошибка: сначала выберите доклад",
-    #         parse_mode=None
-    #     )
-    #     return
-
-    # try:
-    #     talk, user, question = await create_question(
-    #         text=message.text,
-    #         talk_id=talk_id,
-    #         name=message.from_user.full_name, 
-    #         telegram_id=message.from_user.id
-    #     )
-    #     await message.answer(
-    #         f"✅ Ваш вопрос отправлен\n\n"
-    #         f"Доклад: {talk.title}\n"
-    #         f"Вопрос: {question.text}\n"
-    #         f"От: {user.name}\n",
-    #         reply_markup=back_keyboard,
-    #         parse_mode=None
-    #     )
-    # except Exception as e:
-    #     await message.answer(
-    #         f"Ошибка при отправке вопроса: {str(e)}",
-    #         reply_markup=back_keyboard,
-    #         parse_mode=None
-    #     )
-    # finally:
-    #     await state.clear()
 
 _BOT = None
 
@@ -328,7 +333,7 @@ async def handle_start_talk(callback):
     if not talk:
         await callback.message.edit_text(
             "У вас нет запланированных докладов в данный момент.",
-            reply_markup=speaker_keyboard
+            reply_markup=guest_keyboard
         )
         await callback.answer()
         return
@@ -336,7 +341,8 @@ async def handle_start_talk(callback):
     await start_talk(talk.id)
     await callback.message.edit_text(
         f"Вы начали выступление: {talk.title}\n"
-        f"Время начала: {now.strftime('%H:%M')}"
+        f"Время начала: {timezone.localtime(now).strftime('%H:%M')}",
+        reply_markup=start_talk_keyboard
     )
     await callback.answer()
 
@@ -364,7 +370,8 @@ async def handle_end_talk(callback):
     await end_talk(talk.id)
     await callback.message.edit_text(
         f"Вы завершили выступление: {talk.title}\n"
-        f"Время окончания: {now.strftime('%H:%M')}"
+        f"Время окончания: {timezone.localtime(now).strftime('%H:%M')}",
+        reply_markup='end_talk_keyboard'
     )
     await callback.answer()
 
