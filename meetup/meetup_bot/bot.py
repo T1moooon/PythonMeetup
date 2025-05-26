@@ -181,11 +181,6 @@ async def back_to_program(callback):
     await callback.answer()
 
 
-# @router.callback_query(F.data == "back_to_speaker_menu")
-# async def back_to_speaker_menu(callback):
-#     await callback.message.edit_text('Главное меню ', reply_markup=start_speaker_keyboard)
-#     await callback.answer()
-
 
 # Список докладов
 @router.callback_query(F.data.startswith("talk_"))
@@ -229,7 +224,7 @@ async def ask_question(callback, state):
         actual_start_time__lte=now,
         actual_end_time__isnull=True
     ).first)()
-    # print(talk)
+
     if not talk:
         await callback.message.answer(
             "Этот доклад не активен в данный момент.",
